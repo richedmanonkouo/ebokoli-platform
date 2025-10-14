@@ -1,0 +1,74 @@
+# Configuration sensible
+includes/config.local.php
+includes/config.php
+
+# Fichiers de base de données
+*.sql
+*.sqlite
+*.db
+
+# Logs
+*.log
+server.log
+router_debug.log
+
+# Fichiers temporaires
+*.tmp
+*.temp
+nul
+
+# Vendor (dépendances)
+vendor/
+node_modules/
+
+# Fichiers utilisateurs uploadés
+content/photos/
+content/avatars/
+content/covers/
+content/videos/
+content/audios/
+content/files/
+
+# Fichiers de cache
+*.cache
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Fichiers de test temporaires
+check_*.php
+test_*.php
+debug_*.php
+list_admins.php
+check_savings_loans_tables.php
+install_savings_loans_tables.php
+verify_setup.php
+force_logout*.php
+import_*.php
+setup_*.php
+reset_admin_password.php
+create_*.php
+
+# Fichiers de documentation temporaires
+*.md
+!README.md
+
+# Fichiers de backup
+*.bak
+*.backup
+
+# Clés et secrets
+*.pem
+*.key
+*.cert
+credentials.json
+.env
