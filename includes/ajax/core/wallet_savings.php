@@ -36,20 +36,15 @@ try {
       if (!isset($_POST['amount']) || !is_numeric($_POST['amount']) || $_POST['amount'] <= 0) {
         throw new Exception(__("You must enter valid amount"));
       }
-      if (!isset($_POST['interest_rate']) || !is_numeric($_POST['interest_rate']) || $_POST['interest_rate'] < 0) {
-        throw new Exception(__("You must enter valid interest rate"));
-      }
 
       $amount = $_POST['amount'];
-      $interest_rate = $_POST['interest_rate'];
-      $maturity_date = (!empty($_POST['maturity_date'])) ? $_POST['maturity_date'] : null;
-      $description = $_POST['description'];
+      $description = isset($_POST['description']) ? $_POST['description'] : '';
 
       /* create saving */
-      $user->wallet_create_saving($amount, $interest_rate, $maturity_date, $description);
+      $user->wallet_create_saving($amount, $description);
 
       /* return */
-      modal("SUCCESS", __("Success"), __("Your saving has been created successfully"));
+      modal("SUCCESS", __("Success"), __("Your saving has been created successfully. The amount has been debited from your wallet."));
       break;
 
     case 'withdraw':
@@ -62,6 +57,48 @@ try {
 
       /* withdraw saving */
       $user->wallet_withdraw_saving($saving_id);
+
+      /* return */
+      return_json(array('callback' => 'window.location.reload();'));
+      break;
+
+    case 'approve':
+      /* check admin permission */
+      if (!$user->_is_admin) {
+        throw new Exception(__("You do not have permission"));
+      }
+
+      /* valid inputs */
+      if (!isset($_POST['saving_id']) || !is_numeric($_POST['saving_id'])) {
+        throw new Exception(__("Invalid saving ID"));
+      }
+
+      $saving_id = $_POST['saving_id'];
+      $interest_rate = isset($_POST['interest_rate']) ? $_POST['interest_rate'] : 0;
+      $maturity_date = isset($_POST['maturity_date']) && !empty($_POST['maturity_date']) ? $_POST['maturity_date'] : null;
+
+      /* approve saving */
+      $user->admin_approve_saving($saving_id, $interest_rate, $maturity_date);
+
+      /* return */
+      return_json(array('callback' => 'window.location.reload();'));
+      break;
+
+    case 'reject':
+      /* check admin permission */
+      if (!$user->_is_admin) {
+        throw new Exception(__("You do not have permission"));
+      }
+
+      /* valid inputs */
+      if (!isset($_POST['saving_id']) || !is_numeric($_POST['saving_id'])) {
+        throw new Exception(__("Invalid saving ID"));
+      }
+
+      $saving_id = $_POST['saving_id'];
+
+      /* reject saving */
+      $user->admin_reject_saving($saving_id);
 
       /* return */
       return_json(array('callback' => 'window.location.reload();'));

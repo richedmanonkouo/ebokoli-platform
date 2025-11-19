@@ -20854,4 +20854,388 @@ class User
     return $transactions;
   }
 
+
+  /**
+   * wallet_create_saving
+   * Utilisateur crée une épargne directement (sans approbation)
+   *
+   * @param float $amount Montant de l'épargne
+   * @param string $description Description de l'épargne
+   * @return int ID de l'épargne créée
+   */
+  public function wallet_create_saving($amount, $description = '')
+  {
+    global $db, $date;
+
+    // Vérifier que l'utilisateur est connecté
+    if (!$this->_logged_in) {
+      throw new Exception(__("You must be logged in"));
+    }
+
+    // Valider le montant
+    if (!is_numeric($amount) || $amount <= 0) {
+      throw new Exception(__("Invalid amount"));
+    }
+
+    // Vérifier que l'utilisateur a assez d'argent
+    if ($this->_data['user_wallet_balance'] < $amount) {
+      throw new Exception(__("Insufficient balance"));
+    }
+
+    // Débiter le montant du wallet
+    $db->query(sprintf('UPDATE users SET user_wallet_balance = user_wallet_balance - %1$s WHERE user_id = %2$s', secure($amount, 'float'), secure($this->_data['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Créer l'épargne avec statut 'active' (pas de taux d'intérêt)
+    $db->query(sprintf(
+      "INSERT INTO wallet_savings (user_id, amount, interest_rate, start_date, status, description) VALUES (%s, %s, 0, %s, 'active', %s)",
+      secure($this->_data['user_id'], 'int'),
+      secure($amount, 'float'),
+      secure($date),
+      secure($description)
+    )) or _error('SQL_ERROR_THROWEN');
+
+    $saving_id = $db->insert_id;
+
+    // Créer une transaction
+    $this->wallet_set_transaction($this->_data['user_id'], 'saving', $saving_id, '-' . $amount, __("Saving deposit"));
+
+    // Mettre à jour le solde en cache
+    $this->_data['user_wallet_balance'] -= $amount;
+
+    return $saving_id;
+  }
+
+
+  /**
+   * wallet_create_loan
+   * Utilisateur crée un emprunt directement (sans approbation ni intérêt)
+   *
+   * @param float $amount Montant de l'emprunt
+   * @param int $duration_months Durée en mois
+   * @param string $description Description de l'emprunt
+   * @return int ID de l'emprunt créé
+   */
+  public function wallet_create_loan($amount, $duration_months, $description = '')
+  {
+    global $db, $date;
+
+    // Vérifier que l'utilisateur est connecté
+    if (!$this->_logged_in) {
+      throw new Exception(__("You must be logged in"));
+    }
+
+    // Valider les paramètres
+    if (!is_numeric($amount) || $amount <= 0) {
+      throw new Exception(__("Invalid amount"));
+    }
+
+    if (!is_numeric($duration_months) || $duration_months <= 0 || $duration_months > 120) {
+      throw new Exception(__("Invalid duration (1-120 months)"));
+    }
+
+    // Calculer le paiement mensuel (sans intérêt)
+    $monthly_payment = $amount / $duration_months;
+    $due_date = date('Y-m-d H:i:s', strtotime("+{$duration_months} months"));
+
+    // Créditer le montant au wallet
+    $db->query(sprintf('UPDATE users SET user_wallet_balance = user_wallet_balance + %1$s WHERE user_id = %2$s', secure($amount, 'float'), secure($this->_data['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Créer l'emprunt avec statut 'active' (pas de taux d'intérêt)
+    $db->query(sprintf(
+      "INSERT INTO wallet_loans (user_id, amount, interest_rate, duration_months, monthly_payment, amount_remaining, loan_date, due_date, status, description) VALUES (%s, %s, 0, %s, %s, %s, %s, %s, 'active', %s)",
+      secure($this->_data['user_id'], 'int'),
+      secure($amount, 'float'),
+      secure($duration_months, 'int'),
+      secure($monthly_payment, 'float'),
+      secure($amount, 'float'),
+      secure($date),
+      secure($due_date),
+      secure($description)
+    )) or _error('SQL_ERROR_THROWEN');
+
+    $loan_id = $db->insert_id;
+
+    // Créer une transaction
+    $this->wallet_set_transaction($this->_data['user_id'], 'loan', $loan_id, $amount, __("Loan received"));
+
+    // Mettre à jour le solde en cache
+    $this->_data['user_wallet_balance'] += $amount;
+
+    return $loan_id;
+  }
+
+
+  /**
+   * wallet_withdraw_saving
+   * Utilisateur retire une épargne (recrédite le wallet)
+   *
+   * @param int $saving_id ID de l'épargne
+   * @return bool
+   */
+  public function wallet_withdraw_saving($saving_id)
+  {
+    global $db;
+
+    // Vérifier que l'utilisateur est connecté
+    if (!$this->_logged_in) {
+      throw new Exception(__("You must be logged in"));
+    }
+
+    // Récupérer l'épargne
+    $get_saving = $db->query(sprintf("SELECT * FROM wallet_savings WHERE saving_id = %s AND user_id = %s AND status = 'active'", secure($saving_id, 'int'), secure($this->_data['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    if ($get_saving->num_rows == 0) {
+      throw new Exception(__("Saving not found or already withdrawn"));
+    }
+
+    $saving = $get_saving->fetch_assoc();
+
+    // Créditer le montant au wallet
+    $db->query(sprintf('UPDATE users SET user_wallet_balance = user_wallet_balance + %1$s WHERE user_id = %2$s', secure($saving['amount'], 'float'), secure($this->_data['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Marquer l'épargne comme complétée
+    $db->query(sprintf("UPDATE wallet_savings SET status = 'completed' WHERE saving_id = %s", secure($saving_id, 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Créer une transaction
+    $this->wallet_set_transaction($this->_data['user_id'], 'saving_withdraw', $saving_id, $saving['amount'], __("Saving withdrawal"));
+
+    // Mettre à jour le solde en cache
+    $this->_data['user_wallet_balance'] += $saving['amount'];
+
+    return true;
+  }
+
+
+  /**
+   * wallet_pay_loan
+   * Utilisateur effectue un paiement sur un emprunt
+   *
+   * @param int $loan_id ID de l'emprunt
+   * @param float $amount Montant du paiement
+   * @return bool
+   */
+  public function wallet_pay_loan($loan_id, $amount)
+  {
+    global $db, $date;
+
+    // Vérifier que l'utilisateur est connecté
+    if (!$this->_logged_in) {
+      throw new Exception(__("You must be logged in"));
+    }
+
+    // Valider le montant
+    if (!is_numeric($amount) || $amount <= 0) {
+      throw new Exception(__("Invalid amount"));
+    }
+
+    // Récupérer l'emprunt
+    $get_loan = $db->query(sprintf("SELECT * FROM wallet_loans WHERE loan_id = %s AND user_id = %s AND status = 'active'", secure($loan_id, 'int'), secure($this->_data['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    if ($get_loan->num_rows == 0) {
+      throw new Exception(__("Loan not found or already completed"));
+    }
+
+    $loan = $get_loan->fetch_assoc();
+
+    // Vérifier que l'utilisateur a assez d'argent
+    if ($this->_data['user_wallet_balance'] < $amount) {
+      throw new Exception(__("Insufficient balance"));
+    }
+
+    // Vérifier que le montant ne dépasse pas le reste à payer
+    if ($amount > $loan['amount_remaining']) {
+      throw new Exception(__("Amount exceeds remaining balance"));
+    }
+
+    // Débiter le montant du wallet
+    $db->query(sprintf('UPDATE users SET user_wallet_balance = user_wallet_balance - %1$s WHERE user_id = %2$s', secure($amount, 'float'), secure($this->_data['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Mettre à jour l'emprunt
+    $new_paid = $loan['amount_paid'] + $amount;
+    $new_remaining = $loan['amount_remaining'] - $amount;
+    $new_status = ($new_remaining <= 0) ? 'completed' : 'active';
+
+    $db->query(sprintf("UPDATE wallet_loans SET amount_paid = %s, amount_remaining = %s, status = %s WHERE loan_id = %s", secure($new_paid, 'float'), secure($new_remaining, 'float'), secure($new_status), secure($loan_id, 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Enregistrer le paiement dans wallet_loan_payments
+    $db->query(sprintf(
+      "INSERT INTO wallet_loan_payments (loan_id, user_id, amount, payment_date) VALUES (%s, %s, %s, %s)",
+      secure($loan_id, 'int'),
+      secure($this->_data['user_id'], 'int'),
+      secure($amount, 'float'),
+      secure($date)
+    )) or _error('SQL_ERROR_THROWEN');
+
+    // Créer une transaction
+    $this->wallet_set_transaction($this->_data['user_id'], 'loan_payment', $loan_id, '-' . $amount, __("Loan payment"));
+
+    // Mettre à jour le solde en cache
+    $this->_data['user_wallet_balance'] -= $amount;
+
+    return true;
+  }
+
+
+  /**
+   * admin_approve_saving
+   * Admin approuve une demande d'épargne
+   *
+   * @param int $saving_id ID de l'épargne
+   * @param float $interest_rate Taux d'intérêt annuel (%)
+   * @param string $maturity_date Date de maturité (optionnel)
+   * @return bool
+   */
+  public function admin_approve_saving($saving_id, $interest_rate = 0, $maturity_date = null)
+  {
+    global $db;
+
+    // Vérifier les permissions admin
+    if (!$this->_is_admin) {
+      throw new Exception(__("You do not have permission"));
+    }
+
+    // Récupérer la demande d'épargne
+    $get_saving = $db->query(sprintf("SELECT * FROM wallet_savings WHERE saving_id = %s AND status = 'pending'", secure($saving_id, 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    if ($get_saving->num_rows == 0) {
+      throw new Exception(__("Saving request not found"));
+    }
+
+    $saving = $get_saving->fetch_assoc();
+
+    // Vérifier que l'utilisateur a toujours le solde suffisant
+    $get_user = $db->query(sprintf("SELECT user_wallet_balance FROM users WHERE user_id = %s", secure($saving['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+    $user_data = $get_user->fetch_assoc();
+
+    if ($user_data['user_wallet_balance'] < $saving['amount']) {
+      throw new Exception(__("User has insufficient balance"));
+    }
+
+    // Débiter le montant du wallet de l'utilisateur
+    $db->query(sprintf('UPDATE users SET user_wallet_balance = user_wallet_balance - %1$s WHERE user_id = %2$s', secure($saving['amount'], 'float'), secure($saving['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Mettre à jour l'épargne avec le statut 'active'
+    $maturity_sql = ($maturity_date) ? sprintf(", maturity_date = %s", secure($maturity_date)) : '';
+    $db->query(sprintf(
+      "UPDATE wallet_savings SET status = 'active', interest_rate = %s%s WHERE saving_id = %s",
+      secure($interest_rate, 'float'),
+      $maturity_sql,
+      secure($saving_id, 'int')
+    )) or _error('SQL_ERROR_THROWEN');
+
+    // Créer une transaction
+    $this->wallet_set_transaction($saving['user_id'], 'saving', $saving_id, '-' . $saving['amount'], __("Saving deposit approved"));
+
+    return true;
+  }
+
+
+  /**
+   * admin_reject_saving
+   * Admin rejette une demande d'épargne
+   *
+   * @param int $saving_id ID de l'épargne
+   * @return bool
+   */
+  public function admin_reject_saving($saving_id)
+  {
+    global $db;
+
+    // Vérifier les permissions admin
+    if (!$this->_is_admin) {
+      throw new Exception(__("You do not have permission"));
+    }
+
+    // Mettre à jour le statut à 'cancelled'
+    $db->query(sprintf("UPDATE wallet_savings SET status = 'cancelled' WHERE saving_id = %s AND status = 'pending'", secure($saving_id, 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    if ($db->affected_rows == 0) {
+      throw new Exception(__("Saving request not found"));
+    }
+
+    return true;
+  }
+
+
+  /**
+   * admin_approve_loan
+   * Admin approuve une demande d'emprunt
+   *
+   * @param int $loan_id ID de l'emprunt
+   * @param float $interest_rate Taux d'intérêt annuel (%)
+   * @return bool
+   */
+  public function admin_approve_loan($loan_id, $interest_rate = 0)
+  {
+    global $db;
+
+    // Vérifier les permissions admin
+    if (!$this->_is_admin) {
+      throw new Exception(__("You do not have permission"));
+    }
+
+    // Récupérer la demande d'emprunt
+    $get_loan = $db->query(sprintf("SELECT * FROM wallet_loans WHERE loan_id = %s AND status = 'pending'", secure($loan_id, 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    if ($get_loan->num_rows == 0) {
+      throw new Exception(__("Loan request not found"));
+    }
+
+    $loan = $get_loan->fetch_assoc();
+
+    // Recalculer le paiement mensuel avec le taux d'intérêt
+    $monthly_interest_rate = ($interest_rate / 100) / 12;
+    if ($monthly_interest_rate > 0) {
+      $monthly_payment = ($monthly_interest_rate * $loan['amount']) / (1 - pow(1 + $monthly_interest_rate, -$loan['duration_months']));
+    } else {
+      $monthly_payment = $loan['amount'] / $loan['duration_months'];
+    }
+
+    $total_amount = $monthly_payment * $loan['duration_months'];
+
+    // Créditer le montant au wallet de l'utilisateur
+    $db->query(sprintf('UPDATE users SET user_wallet_balance = user_wallet_balance + %1$s WHERE user_id = %2$s', secure($loan['amount'], 'float'), secure($loan['user_id'], 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    // Mettre à jour l'emprunt avec le statut 'active'
+    $db->query(sprintf(
+      "UPDATE wallet_loans SET status = 'active', interest_rate = %s, monthly_payment = %s, amount_remaining = %s WHERE loan_id = %s",
+      secure($interest_rate, 'float'),
+      secure($monthly_payment, 'float'),
+      secure($total_amount, 'float'),
+      secure($loan_id, 'int')
+    )) or _error('SQL_ERROR_THROWEN');
+
+    // Créer une transaction
+    $this->wallet_set_transaction($loan['user_id'], 'loan', $loan_id, $loan['amount'], __("Loan approved"));
+
+    return true;
+  }
+
+
+  /**
+   * admin_reject_loan
+   * Admin rejette une demande d'emprunt
+   *
+   * @param int $loan_id ID de l'emprunt
+   * @return bool
+   */
+  public function admin_reject_loan($loan_id)
+  {
+    global $db;
+
+    // Vérifier les permissions admin
+    if (!$this->_is_admin) {
+      throw new Exception(__("You do not have permission"));
+    }
+
+    // Mettre à jour le statut à 'cancelled'
+    $db->query(sprintf("UPDATE wallet_loans SET status = 'cancelled' WHERE loan_id = %s AND status = 'pending'", secure($loan_id, 'int'))) or _error('SQL_ERROR_THROWEN');
+
+    if ($db->affected_rows == 0) {
+      throw new Exception(__("Loan request not found"));
+    }
+
+    return true;
+  }
+
 }

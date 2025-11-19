@@ -36,16 +36,10 @@
                 {__("Wallet")}
               </a>
             </li>
-            <li {if $view == "savings"}class="active" {/if}>
+            <li {if $view == "savings" || $view == "loans"}class="active" {/if}>
               <a href="{$system['system_url']}/wallet/savings">
                 {include file='__svg_icons.tpl' icon="wallet" class="main-icon mr10" width="24px" height="24px"}
-                {__("Épargne")}
-              </a>
-            </li>
-            <li {if $view == "loans"}class="active" {/if}>
-              <a href="{$system['system_url']}/wallet/loans">
-                {include file='__svg_icons.tpl' icon="wallet" class="main-icon mr10" width="24px" height="24px"}
-                {__("Emprunts")}
+                {__("Épargnes & Emprunts")}
               </a>
             </li>
             {if $system['wallet_withdrawal_enabled']}
@@ -155,7 +149,7 @@
                 </div>
                 <div class="d-grid">
                   {if $system['wallet_transfer_enabled']}
-                    <button class="btn btn-outline-primary mb10" data-toggle="modal" data-url="#wallet-transfer">
+                    <button class="btn btn-outline-primary mb10" data-bs-toggle="modal" data-bs-target="#wallet-transfer">
                       {include file='__svg_icons.tpl' icon="wallet_transfer" class="main-icon mr10" width="24px" height="24px"}
                       {__("Send Money")}
                     </button>
@@ -163,36 +157,36 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                  <button class="btn btn-outline-primary" data-toggle="modal" data-url="#wallet-replenish">
+                  <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#wallet-replenish">
                     {include file='__svg_icons.tpl' icon="payments" class="main-icon mr10" width="24px" height="24px"}
                     {__("Replenish Credit")}
                   </button>
                   {if $system['affiliates_enabled'] && $system['affiliates_money_transfer_enabled']}
-                    <button class="btn btn-outline-primary" data-toggle="modal" data-url="#wallet-withdraw-affiliates">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#wallet-withdraw-affiliates">
                       {include file='__svg_icons.tpl' icon="affiliates" class="main-icon mr10" width="24px" height="24px"}
                       {__("Affiliates Credit")}
                     </button>
                   {/if}
                   {if $system['points_enabled'] && $system['points_money_transfer_enabled']}
-                    <button class="btn btn-outline-primary" data-toggle="modal" data-url="#wallet-withdraw-points">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#wallet-withdraw-points">
                       {include file='__svg_icons.tpl' icon="points" class="main-icon mr10" width="24px" height="24px"}
                       {__("Points Credit")}
                     </button>
                   {/if}
                   {if $user->_data['can_sell_products'] && $system['market_money_transfer_enabled']}
-                    <button class="btn btn-outline-primary" data-toggle="modal" data-url="#wallet-withdraw-market">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#wallet-withdraw-market">
                       {include file='__svg_icons.tpl' icon="market" class="main-icon mr10" width="24px" height="24px"}
                       {__("Marketplace Credit")}
                     </button>
                   {/if}
                   {if $user->_data['can_raise_funding'] && $system['funding_money_transfer_enabled']}
-                    <button class="btn btn-outline-primary" data-toggle="modal" data-url="#wallet-withdraw-funding">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#wallet-withdraw-funding">
                       {include file='__svg_icons.tpl' icon="funding" class="main-icon mr10" width="24px" height="24px"}
                       {__("Funding Credit")}
                     </button>
                   {/if}
                   {if $user->_data['can_monetize_content'] && $system['monetization_money_transfer_enabled']}
-                    <button class="btn btn-outline-primary" data-toggle="modal" data-url="#wallet-withdraw-monetization">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#wallet-withdraw-monetization">
                       {include file='__svg_icons.tpl' icon="monetization" class="main-icon mr10" width="24px" height="24px"}
                       {__("Monetization Credit")}
                     </button>
@@ -445,30 +439,33 @@
         </div>
         <!-- payments -->
 
-      {elseif $view == "savings"}
+      {elseif $view == "savings" || $view == "loans"}
 
-        <!-- savings -->
+        <!-- savings & loans -->
         <div class="card mt20">
           <div class="card-header with-icon with-icon-tabs">
             <div class="float-end">
-              <span class="badge bg-info p-2">
-                <i class="fa fa-eye mr5"></i>{__("Vue Consultation")}
-              </span>
+              <button type="button" class="btn btn-sm btn-success" data-toggle="modal" data-url="ajax/wallet/create_saving.php">
+                <i class="fa fa-plus mr5"></i>{__("Créer une Épargne")}
+              </button>
+              <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-url="ajax/wallet/request_loan.php">
+                <i class="fa fa-plus mr5"></i>{__("Créer un Emprunt")}
+              </button>
             </div>
             {include file='__svg_icons.tpl' icon="wallet" class="main-icon mr10" width="24px" height="24px"}
-            {__("Mes Épargnes")}
+            {__("Épargnes & Emprunts")}
           </div>
           <div class="card-body page-content">
 
             <!-- Info Message -->
             <div class="alert alert-info mb20">
               <i class="fa fa-info-circle mr5"></i>
-              <strong>{__("Information")}</strong> : {__("Vos épargnes sont gérées par l'administration. Pour toute demande, veuillez contacter un administrateur.")}
+              <strong>{__("Information")}</strong> : {__("Créez vos épargnes et emprunts directement. Les montants sont débités/crédités immédiatement sans taux d'intérêt.")}
             </div>
 
-            <!-- Total Savings -->
+            <!-- Statistics -->
             <div class="row mb20">
-              <div class="col-md-12">
+              <div class="col-md-6">
                 <div class="stat-panel bg-gradient-success">
                   <div class="stat-cell">
                     <i class="fa fa-piggy-bank bg-icon"></i>
@@ -476,6 +473,17 @@
                       {print_money($user->_data['user_total_savings']|number_format:2)}
                     </div>
                     <span class="text-muted">{__("Total Épargné")}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="stat-panel bg-gradient-warning">
+                  <div class="stat-cell">
+                    <i class="fa fa-hand-holding-usd bg-icon"></i>
+                    <div class="h3 mtb10">
+                      {print_money($user->_data['user_total_loans']|number_format:2)}
+                    </div>
+                    <span class="text-muted">{__("Total Emprunts en Cours")}</span>
                   </div>
                 </div>
               </div>
@@ -492,11 +500,10 @@
                     <tr>
                       <th>{__("ID")}</th>
                       <th>{__("Montant")}</th>
-                      <th>{__("Taux d'intérêt")}</th>
-                      <th>{__("Intérêts Accumulés")}</th>
-                      <th>{__("Valeur Actuelle")}</th>
                       <th>{__("Date de Début")}</th>
+                      <th>{__("Date Maturité")}</th>
                       <th>{__("Statut")}</th>
+                      <th>{__("Actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -504,10 +511,8 @@
                       <tr>
                         <td>{$saving['saving_id']}</td>
                         <td><strong class="text-success">{print_money($saving['amount']|number_format:2)}</strong></td>
-                        <td>{$saving['interest_rate']}%</td>
-                        <td><span class="badge rounded-pill badge-lg bg-info">{print_money($saving['accumulated_interest']|number_format:2)}</span></td>
-                        <td><strong class="text-primary">{print_money($saving['current_value']|number_format:2)}</strong></td>
                         <td><span class="js_moment" data-time="{$saving['start_date']}">{$saving['start_date']}</span></td>
+                        <td>{if $saving['maturity_date']}<span class="js_moment" data-time="{$saving['maturity_date']}">{$saving['maturity_date']}</span>{else}<span class="text-muted">-</span>{/if}</td>
                         <td>
                           {if $saving['status'] == 'active'}
                             <span class="badge rounded-pill badge-lg bg-success">{__("Active")}</span>
@@ -515,6 +520,15 @@
                             <span class="badge rounded-pill badge-lg bg-secondary">{__("Complétée")}</span>
                           {else}
                             <span class="badge rounded-pill badge-lg bg-danger">{__("Annulée")}</span>
+                          {/if}
+                        </td>
+                        <td>
+                          {if $saving['status'] == 'active'}
+                            <button type="button" class="btn btn-sm btn-success js_wallet-withdraw-saving" data-id="{$saving['saving_id']}">
+                              <i class="fa fa-coins mr5"></i>{__("Retirer")}
+                            </button>
+                          {else}
+                            <span class="text-muted">-</span>
                           {/if}
                         </td>
                       </tr>
@@ -528,7 +542,77 @@
                   <i class="fa fa-piggy-bank fa-5x text-muted"></i>
                 </div>
                 <h4 class="text-muted">{__("Aucune épargne pour le moment")}</h4>
-                <p class="text-muted">{__("L'administrateur créera vos épargnes")}</p>
+                <p class="text-muted">{__("Cliquez sur 'Créer une Épargne' pour commencer")}</p>
+              </div>
+            {/if}
+
+            <!-- Active Loans -->
+            {if $loans}
+              <div class="section-title mt30 mb20">
+                {__("Mes Emprunts")}
+              </div>
+              <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover">
+                  <thead>
+                    <tr>
+                      <th>{__("ID")}</th>
+                      <th>{__("Montant")}</th>
+                      <th>{__("Durée")}</th>
+                      <th>{__("Paiement Mensuel")}</th>
+                      <th>{__("Montant Payé")}</th>
+                      <th>{__("Reste à Payer")}</th>
+                      <th>{__("Date")}</th>
+                      <th>{__("Statut")}</th>
+                      <th>{__("Actions")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {foreach $loans as $loan}
+                      <tr>
+                        <td>{$loan['loan_id']}</td>
+                        <td><strong class="text-primary">{print_money($loan['amount']|number_format:2)}</strong></td>
+                        <td>{$loan['duration_months']} {__("mois")}</td>
+                        <td><span class="badge rounded-pill badge-lg bg-info">{print_money($loan['monthly_payment']|number_format:2)}</span></td>
+                        <td><span class="text-success">{print_money($loan['amount_paid']|number_format:2)}</span></td>
+                        <td><strong class="text-danger">{print_money($loan['amount_remaining']|number_format:2)}</strong></td>
+                        <td><span class="js_moment" data-time="{$loan['loan_date']}">{$loan['loan_date']}</span></td>
+                        <td>
+                          {if $loan['status'] == 'pending'}
+                            <span class="badge rounded-pill badge-lg bg-warning">{__("En Attente")}</span>
+                          {elseif $loan['status'] == 'active'}
+                            <span class="badge rounded-pill badge-lg bg-primary">{__("Actif")}</span>
+                          {elseif $loan['status'] == 'completed'}
+                            <span class="badge rounded-pill badge-lg bg-success">{__("Remboursé")}</span>
+                          {elseif $loan['status'] == 'defaulted'}
+                            <span class="badge rounded-pill badge-lg bg-danger">{__("Défaut")}</span>
+                          {else}
+                            <span class="badge rounded-pill badge-lg bg-secondary">{__("Annulé")}</span>
+                          {/if}
+                        </td>
+                        <td>
+                          {if $loan['status'] == 'active'}
+                            <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-url="ajax/wallet/pay_loan.php?loan_id={$loan['loan_id']}">
+                              <i class="fa fa-money-bill mr5"></i>{__("Payer")}
+                            </button>
+                          {else}
+                            <span class="text-muted">-</span>
+                          {/if}
+                        </td>
+                      </tr>
+                    {/foreach}
+                  </tbody>
+                </table>
+              </div>
+            {else}
+              <div class="section-title mt30 mb20">
+                {__("Mes Emprunts")}
+              </div>
+              <div class="text-center mtb20">
+                <div class="mb10">
+                  <i class="fa fa-hand-holding-usd fa-5x text-muted"></i>
+                </div>
+                <h4 class="text-muted">{__("Aucun emprunt pour le moment")}</h4>
+                <p class="text-muted">{__("Cliquez sur 'Créer un Emprunt' pour commencer")}</p>
               </div>
             {/if}
 
@@ -624,7 +708,6 @@
                     <tr>
                       <th>{__("ID")}</th>
                       <th>{__("Montant")}</th>
-                      <th>{__("Taux")}</th>
                       <th>{__("Durée")}</th>
                       <th>{__("Paiement Mensuel")}</th>
                       <th>{__("Montant Payé")}</th>
@@ -638,7 +721,6 @@
                       <tr>
                         <td>{$loan['loan_id']}</td>
                         <td><strong class="text-primary">{print_money($loan['amount']|number_format:2)}</strong></td>
-                        <td>{$loan['interest_rate']}%</td>
                         <td>{$loan['duration_months']} {__("mois")}</td>
                         <td><span class="badge rounded-pill badge-lg bg-info">{print_money($loan['monthly_payment']|number_format:2)}</span></td>
                         <td><span class="text-success">{print_money($loan['amount_paid']|number_format:2)}</span></td>
@@ -724,5 +806,7 @@
   </div>
 </div>
 <!-- page content -->
+
+<script src="{$system['system_url']}/includes/assets/js/wallet-savings-loans.js"></script>
 
 {include file='_footer.tpl'}

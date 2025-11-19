@@ -39,23 +39,19 @@ try {
       if (!isset($_POST['duration_months']) || !is_numeric($_POST['duration_months']) || $_POST['duration_months'] <= 0) {
         throw new Exception(__("You must enter valid duration"));
       }
-      if (!isset($_POST['interest_rate']) || !is_numeric($_POST['interest_rate']) || $_POST['interest_rate'] < 0) {
-        throw new Exception(__("You must enter valid interest rate"));
-      }
       if (empty($_POST['description'])) {
         throw new Exception(__("You must enter a description"));
       }
 
       $amount = $_POST['amount'];
       $duration_months = $_POST['duration_months'];
-      $interest_rate = $_POST['interest_rate'];
       $description = $_POST['description'];
 
-      /* request loan */
-      $user->wallet_request_loan($amount, $duration_months, $interest_rate, $description);
+      /* create loan */
+      $user->wallet_create_loan($amount, $duration_months, $description);
 
       /* return */
-      modal("SUCCESS", __("Success"), __("Your loan request has been submitted. You will be notified once approved."));
+      modal("SUCCESS", __("Success"), __("Your loan has been created successfully. The amount has been credited to your wallet."));
       break;
 
     case 'pay':
@@ -89,9 +85,30 @@ try {
       }
 
       $loan_id = $_POST['loan_id'];
+      $interest_rate = isset($_POST['interest_rate']) ? $_POST['interest_rate'] : 0;
 
       /* approve loan */
-      $user->wallet_approve_loan($loan_id);
+      $user->admin_approve_loan($loan_id, $interest_rate);
+
+      /* return */
+      return_json(array('callback' => 'window.location.reload();'));
+      break;
+
+    case 'reject':
+      /* check admin permission */
+      if (!$user->_is_admin) {
+        throw new Exception(__("You do not have permission"));
+      }
+
+      /* valid inputs */
+      if (!isset($_POST['loan_id']) || !is_numeric($_POST['loan_id'])) {
+        throw new Exception(__("Invalid loan ID"));
+      }
+
+      $loan_id = $_POST['loan_id'];
+
+      /* reject loan */
+      $user->admin_reject_loan($loan_id);
 
       /* return */
       return_json(array('callback' => 'window.location.reload();'));

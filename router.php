@@ -12,16 +12,21 @@ $script_name = $_SERVER['SCRIPT_NAME'];
 $uri = parse_url($request_uri, PHP_URL_PATH);
 $uri = trim($uri, '/');
 
-// Debug dans un fichier
-$debug_log = fopen(__DIR__ . '/router_debug.log', 'a');
-fwrite($debug_log, "\n=== " . date('Y-m-d H:i:s') . " ===\n");
-fwrite($debug_log, "REQUEST_URI: $request_uri\n");
-fwrite($debug_log, "URI nettoyée: $uri\n");
+// Debug désactivé en production (décommenter pour debug)
+// $debug_log = fopen(__DIR__ . '/router_debug.log', 'a');
+// fwrite($debug_log, "\n=== " . date('Y-m-d H:i:s') . " ===\n");
+// fwrite($debug_log, "REQUEST_URI: $request_uri\n");
+// fwrite($debug_log, "URI nettoyée: $uri\n");
 
-// Si c'est un fichier PHP ou statique qui existe, le servir directement
-if ($uri && file_exists($uri)) {
-    error_log("Router - Fichier existe: $uri");
-    return false; // Laisser le serveur PHP servir le fichier
+// Si c'est un fichier statique qui existe (pas PHP), le servir directement
+if ($uri && file_exists($uri) && !is_dir($uri)) {
+    // Ne servir directement que les fichiers non-PHP
+    $extension = pathinfo($uri, PATHINFO_EXTENSION);
+    if (!in_array($extension, ['php'])) {
+        // fwrite($debug_log, "Fichier statique trouvé: $uri\n");
+        // fclose($debug_log);
+        return false; // Laisser le serveur PHP servir le fichier
+    }
 }
 
 // Routes personnalisées
@@ -137,7 +142,7 @@ foreach ($routes as $pattern => $target) {
     } else {
         // Route simple
         if ($uri === $pattern) {
-            fwrite($debug_log, "✓ Route simple trouvée: $pattern -> $target\n");
+            // fwrite($debug_log, "✓ Route simple trouvée: $pattern -> $target\n");
             $_SERVER['SCRIPT_NAME'] = '/' . explode('?', $target)[0];
             if (strpos($target, '?') !== false) {
                 list($file, $query) = explode('?', $target, 2);
@@ -147,21 +152,21 @@ foreach ($routes as $pattern => $target) {
             } else {
                 $file = $target;
             }
-            fwrite($debug_log, "Chargement fichier: $file\n");
-            fclose($debug_log);
+            // fwrite($debug_log, "Chargement fichier: $file\n");
+            // fclose($debug_log);
             require $file;
             exit;
         }
     }
 }
 
-fwrite($debug_log, "✗ Aucune route trouvée\n");
+// fwrite($debug_log, "✗ Aucune route trouvée\n");
 
 // Si pas de correspondance et que l'URI n'est pas vide
 // C'est peut-être un profil utilisateur
 if ($uri && !strpos($uri, '.') && !strpos($uri, '/')) {
-    fwrite($debug_log, "→ Tentative de routage vers profil: $uri\n");
-    fclose($debug_log);
+    // fwrite($debug_log, "→ Tentative de routage vers profil: $uri\n");
+    // fclose($debug_log);
     // Vérifier si c'est un username valide
     $_GET['username'] = $uri;
     $_REQUEST['username'] = $uri;
@@ -172,15 +177,15 @@ if ($uri && !strpos($uri, '.') && !strpos($uri, '/')) {
 
 // Route par défaut (homepage)
 if (empty($uri) || $uri === 'index.php') {
-    fwrite($debug_log, "→ Route par défaut (homepage)\n");
-    fclose($debug_log);
+    // fwrite($debug_log, "→ Route par défaut (homepage)\n");
+    // fclose($debug_log);
     require 'index.php';
     exit;
 }
 
 // Si rien ne correspond, 404
-fwrite($debug_log, "→ 404 Not Found\n");
-fclose($debug_log);
+// fwrite($debug_log, "→ 404 Not Found\n");
+// fclose($debug_log);
 http_response_code(404);
 echo "404 - Page not found";
 exit;

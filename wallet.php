@@ -2,10 +2,25 @@
 
 /**
  * wallet
- * 
+ *
  * @package Sngine
  * @author Zamblek
  */
+
+// Parse URL pour mode développement (quand mod_rewrite n'est pas disponible)
+if (!isset($_GET['view']) && isset($_SERVER['REQUEST_URI'])) {
+    $request_uri = $_SERVER['REQUEST_URI'];
+    // Enlever les paramètres de requête
+    $path = parse_url($request_uri, PHP_URL_PATH);
+    // Enlever les slashes de début et fin
+    $path = trim($path, '/');
+
+    // Vérifier si c'est une route wallet
+    if (preg_match('#^wallet/(.+)$#', $path, $matches)) {
+        $_GET['view'] = $matches[1];
+        $_REQUEST['view'] = $matches[1];
+    }
+}
 
 // fetch bootloader
 require('bootloader.php');
@@ -20,9 +35,9 @@ user_access();
 
 try {
 
-  // Si pas de vue spécifiée, afficher par défaut savings
-  if (!isset($_GET['view']) || $_GET['view'] === '') {
-    $_GET['view'] = 'savings';
+  // Si pas de vue spécifiée, afficher wallet par défaut
+  if (!isset($_GET['view'])) {
+    $_GET['view'] = '';
   }
 
   // get view content
@@ -100,28 +115,24 @@ try {
       break;
 
     case 'savings':
+    case 'loans':
       // page header
-      page_header(__("Savings") . ' | ' . __($system['system_title']));
+      page_header(__("Savings & Loans") . ' | ' . __($system['system_title']));
 
       // get savings
       $savings = $user->wallet_get_savings();
       /* assign variables */
       $smarty->assign('savings', $savings);
 
-      // get savings transactions
-      $savings_transactions = $user->wallet_get_transactions_by_type('savings');
-      /* assign variables */
-      $smarty->assign('savings_transactions', $savings_transactions);
-      break;
-
-    case 'loans':
-      // page header
-      page_header(__("Loans") . ' | ' . __($system['system_title']));
-
       // get loans
       $loans = $user->wallet_get_loans();
       /* assign variables */
       $smarty->assign('loans', $loans);
+
+      // get savings transactions
+      $savings_transactions = $user->wallet_get_transactions_by_type('savings');
+      /* assign variables */
+      $smarty->assign('savings_transactions', $savings_transactions);
 
       // get loans transactions
       $loans_transactions = $user->wallet_get_transactions_by_type('loans');

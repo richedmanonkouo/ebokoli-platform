@@ -61,10 +61,19 @@ create_*.php
 # Fichiers de documentation temporaires
 *.md
 !README.md
+!GUIDE_DEPLOIEMENT_HOSTINGER.md
+!GUIDE_ADMINISTRATION_WALLET.md
+!GUIDE_UTILISATEUR_WALLET.md
+!CORRECTIONS_EFFECTUEES.md
+!NETTOYAGE_FINAL.md
 
 # Fichiers de backup
 *.bak
 *.backup
+
+# Fichiers batch Windows (dev local uniquement)
+*.bat
+!start_server.bat
 
 # Clés et secrets
 *.pem
